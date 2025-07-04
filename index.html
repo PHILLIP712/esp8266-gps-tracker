@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live GPS Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <style>
+    body { margin: 0; font-family: sans-serif; }
+    #map { height: 100vh; }
+    #info {
+      position: absolute;
+      top: 10px; left: 10px;
+      background: white; padding: 10px; border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+  </style>
+</head>
+<body>
+
+<div id="info">
+  <strong>Live GPS Tracker</strong><br>
+  <span id="status">Loading...</span>
+</div>
+<div id="map"></div>
+
+<script>
+  const firebaseConfig = {
+    databaseURL: "https://esp8266-gps-tracker-ec809-default-rtdb.asia-southeast1.firebasedatabase.app"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+
+  const map = L.map('map').setView([22.4837, 88.2022], 15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18
+  }).addTo(map);
+
+  let marker = L.marker([22.4837, 88.2022]).addTo(map);
+
+  function updateMap(lat, lon, address, timestamp) {
+    marker.setLatLng([lat, lon]);
+    map.setView([lat, lon]);
+
+    document.getElementById("status").innerHTML =
+      `<strong>Lat:</strong> ${lat.toFixed(6)}<br>` +
+      `<strong>Lon:</strong> ${lon.toFixed(6)}<br>` +
+      `<strong>Address:</strong> ${address}<br>` +
+      `<strong>Updated:</strong> ${new Date(timestamp * 1000).toLocaleTimeString()}`;
+  }
+
+  function listenForLatestGPS() {
+    const ref = db.ref("gps");
+    ref.limitToLast(1).on("child_added", snapshot => {
+      const data = snapshot.val();
+      if (data.latitude && data.longitude) {
+        updateMap(data.latitude, data.longitude, data.address || "N/A", parseInt(data.timestamp));
+      }
+    });
+  }
+
+  listenForLatestGPS();
+</script>
+
+</body>
+</html>
